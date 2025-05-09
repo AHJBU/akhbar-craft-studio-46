@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+
+import React, { createContext, useContext, useState } from "react";
 
 // Define types for our context
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
   fonts: string[];
   colors: string[];
   defaultTextSettings: {
@@ -20,13 +19,27 @@ interface AppContextType {
     };
   };
   updateTemplateImage: (templateType: string, size: "square" | "story" | "post", imageUrl: string) => void;
+  theme: string;
+  setTheme: (theme: string) => void;
+  applicationName: string;
+  applicationDescription: string;
+  logos: {
+    horizontal: string;
+    square: string;
+  };
+  applyTextCensorship: (text: string) => string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [darkMode, setDarkMode] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_username"));
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [theme, setTheme] = useState("light");
+  
+  // Application info
+  const applicationName = "تطبيق تصميم الأخبار";
+  const applicationDescription = "منصة متكاملة لتصميم المحتوى الإخباري بسهولة وإحترافية";
   
   // Available fonts
   const fonts = ["Cairo", "Tajawal", "Almarai", "Changa", "Noto Kufi Arabic"];
@@ -41,72 +54,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     color: "#000000"
   };
   
-  // Template images
-  const [templates, setTemplates] = useState(() => {
-    // Check if we have templates in localStorage
-    const savedTemplates = localStorage.getItem("news_templates");
-    if (savedTemplates) {
-      return JSON.parse(savedTemplates);
-    }
-    
-    // Default templates
-    return {
-      breakingNews: {
-        square: "/templates/breaking_square.png",
-        story: "/templates/breaking_story.png",
-        post: "/templates/breaking_post.png"
-      },
-      general: {
-        square: "/templates/general_square.png",
-        story: "/templates/general_story.png",
-        post: "/templates/general_post.png"
-      },
-      update: {
-        square: "/templates/update_square.png",
-        story: "/templates/update_story.png",
-        post: "/templates/update_post.png"
-      }
-    };
-  });
+  // Logo images for custom design
+  const logos = {
+    horizontal: "/templates/logo_horizontal.png",
+    square: "/templates/logo_square.png"
+  };
   
-  useEffect(() => {
-    // Save templates to localStorage when they change
-    localStorage.setItem("news_templates", JSON.stringify(templates));
-  }, [templates]);
+  // Template images
+  const [templates, setTemplates] = useState({
+    breakingNews: {
+      square: "/templates/breaking_square.png",
+      story: "/templates/breaking_story.png",
+      post: "/templates/breaking_post.png"
+    },
+    general: {
+      square: "/templates/general_square.png",
+      story: "/templates/general_story.png",
+      post: "/templates/general_post.png"
+    },
+    update: {
+      square: "/templates/update_square.png",
+      story: "/templates/update_story.png",
+      post: "/templates/update_post.png"
+    }
+  });
   
   // Toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-  };
-  
-  // Login function
-  const login = async (username: string, password: string): Promise<boolean> => {
-    // Check if this is the first login
-    const isFirstLogin = !localStorage.getItem("admin_username");
-    
-    if (isFirstLogin) {
-      // First login - set the credentials
-      localStorage.setItem("admin_username", username);
-      localStorage.setItem("admin_password", password); // In a real app, use hashing
-      setIsAdmin(true);
-      return true;
-    } else {
-      // Check credentials
-      const storedUsername = localStorage.getItem("admin_username");
-      const storedPassword = localStorage.getItem("admin_password");
-      
-      if (username === storedUsername && password === storedPassword) {
-        setIsAdmin(true);
-        return true;
-      }
-    }
-    
-    return false;
-  };
-  
-  // Logout function
-  const logout = () => {
-    setIsAdmin(false);
   };
   
   // Update template image
@@ -119,19 +94,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }));
   };
+
+  // Apply text censorship
+  const applyTextCensorship = (text: string): string => {
+    // Default censorship rules
+    const censorshipRules = [
+      { original: "فلسطين", replacement: "فلسـطين" },
+      { original: "حماس", replacement: "حمـ.ـاس" },
+      { original: "الاحتلال", replacement: "الآحـتلال" }
+    ];
+
+    let censoredText = text;
+    censorshipRules.forEach(rule => {
+      const regex = new RegExp(rule.original, "g");
+      censoredText = censoredText.replace(regex, rule.replacement);
+    });
+
+    return censoredText;
+  };
   
   // Define the value for the context provider
   const contextValue: AppContextType = {
     darkMode,
     toggleDarkMode,
     isAdmin,
-    login,
-    logout,
     fonts,
     colors,
     defaultTextSettings,
     templates,
-    updateTemplateImage
+    updateTemplateImage,
+    theme,
+    setTheme,
+    applicationName,
+    applicationDescription,
+    logos,
+    applyTextCensorship
   };
   
   return (

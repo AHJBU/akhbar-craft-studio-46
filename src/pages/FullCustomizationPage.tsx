@@ -37,7 +37,7 @@ const FullCustomizationPage = () => {
     const imageUrl = URL.createObjectURL(file);
     
     // Get dimensions of the image
-    const img = document.createElement("img");
+    const img = new Image();
     img.onload = () => {
       setOriginalImageDimensions({ width: img.width, height: img.height });
       setBackgroundImage(imageUrl);
@@ -125,7 +125,11 @@ const FullCustomizationPage = () => {
               <DesignCanvas 
                 backgroundImage={backgroundImage} 
                 width={originalImageDimensions.width} 
-                height={originalImageDimensions.height} 
+                height={originalImageDimensions.height}
+                textBoxes={textBoxes}
+                setTextBoxes={setTextBoxes}
+                selectedTextBox={selectedTextBox}
+                setSelectedTextBox={setSelectedTextBox}
               />
             </div>
           </div>

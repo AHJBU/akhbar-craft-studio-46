@@ -7,29 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateImagesManager } from "@/components/TemplateImagesManager";
 
 const SettingsPage = () => {
-  const { isAdmin, logout } = useApp();
   const [currentTab, setCurrentTab] = useState("appearance");
-  
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">الإعدادات</h1>
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-            <p className="text-center text-red-500">غير مصرح لك بالوصول إلى هذه الصفحة.</p>
-            <p className="text-center mt-2">يرجى تسجيل الدخول أولاً.</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
   
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">الإعدادات</h1>
-          <Button variant="outline" onClick={logout}>تسجيل الخروج</Button>
         </div>
         
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
