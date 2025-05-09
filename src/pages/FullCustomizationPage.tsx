@@ -1,0 +1,147 @@
+
+import { useState, useRef } from "react";
+import { Layout } from "@/components/Layout";
+import { DesignCanvas } from "@/components/DesignCanvas";
+import { TextStyleControls } from "@/components/TextStyleControls";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { Upload, Image } from "lucide-react";
+import { useApp } from "@/contexts/AppContext";
+
+const FullCustomizationPage = () => {
+  const [backgroundImage, setBackgroundImage] = useState<string | undefined>(undefined);
+  const [originalImageDimensions, setOriginalImageDimensions] = useState({ width: 1080, height: 1080 });
+  const [textBoxes, setTextBoxes] = useState<Array<{ id: number; text: string; x: number; y: number; styles: object }>>([]);
+  const [selectedTextBox, setSelectedTextBox] = useState<number | null>(null);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { logos } = useApp();
+  
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    
+    if (!file) return;
+    
+    // Check if file is an image
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "نوع ملف غير مدعوم",
+        description: "الرجاء اختيار ملف صورة (.jpg, .png, .webp, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create object URL for the image
+    const imageUrl = URL.createObjectURL(file);
+    
+    // Get dimensions of the image
+    const img = new Image();
+    img.onload = () => {
+      setOriginalImageDimensions({ width: img.width, height: img.height });
+      setBackgroundImage(imageUrl);
+    };
+    img.src = imageUrl;
+  };
+  
+  // Trigger file input click
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+  
+  // Use logo as background
+  const useLogoAsBackground = (type: "horizontal" | "square") => {
+    setBackgroundImage(logos[type]);
+    
+    // Set dimensions based on logo type
+    if (type === "horizontal") {
+      setOriginalImageDimensions({ width: 1200, height: 600 });
+    } else {
+      setOriginalImageDimensions({ width: 800, height: 800 });
+    }
+  };
+  
+  return (
+    <Layout>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">تخصيص كامل</h1>
+        <p className="text-muted-foreground">صمم منشورات خاصة باستخدام صورك ونصوصك المخصصة</p>
+      </div>
+      
+      {!backgroundImage ? (
+        <div className="bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/*"
+            className="hidden"
+          />
+          
+          <div className="mb-8">
+            <div className="mx-auto bg-gray-100 dark:bg-gray-700 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+              <Upload className="h-8 w-8 text-gray-500 dark:text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">رفع صورة</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">اسحب وأفلت صورة هنا، أو انقر لاختيار صورة</p>
+            <Button onClick={triggerFileUpload}>اختيار صورة</Button>
+          </div>
+          
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
+            <h3 className="text-lg font-semibold mb-4">أو استخدم شعار</h3>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button variant="outline" onClick={() => useLogoAsBackground("horizontal")}>
+                <Image className="h-4 w-4 ml-2" />
+                الشعار الأفقي
+              </Button>
+              <Button variant="outline" onClick={() => useLogoAsBackground("square")}>
+                <Image className="h-4 w-4 ml-2" />
+                الشعار المربع
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Canvas and tools */}
+          <div className="md:col-span-8">
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setBackgroundImage(undefined)}>
+                  اختيار صورة أخرى
+                </Button>
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => useLogoAsBackground("horizontal")}>
+                    الشعار الأفقي
+                  </Button>
+                  <Button variant="outline" onClick={() => useLogoAsBackground("square")}>
+                    الشعار المربع
+                  </Button>
+                </div>
+              </div>
+              
+              <DesignCanvas 
+                backgroundImage={backgroundImage} 
+                width={originalImageDimensions.width} 
+                height={originalImageDimensions.height} 
+              />
+            </div>
+          </div>
+          
+          {/* Text styling panel */}
+          <div className="md:col-span-4">
+            <TextStyleControls 
+              selectedTextBox={selectedTextBox}
+              textBoxes={textBoxes}
+              setTextBoxes={setTextBoxes}
+            />
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
+};
+
+export default FullCustomizationPage;
