@@ -98,7 +98,11 @@ const NewsDesignPage = () => {
             <DesignCanvas 
               backgroundImage={backgroundImage} 
               width={dimensions.width} 
-              height={dimensions.height} 
+              height={dimensions.height}
+              textBoxes={textBoxes}
+              setTextBoxes={setTextBoxes}
+              selectedTextBox={selectedTextBox}
+              setSelectedTextBox={setSelectedTextBox}
             />
           </div>
         </div>

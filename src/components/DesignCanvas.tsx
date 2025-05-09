@@ -6,14 +6,27 @@ import { Slider } from "@/components/ui/slider";
 import { useApp } from "@/contexts/AppContext";
 import { ZoomIn, ZoomOut, Grid, Download, Move, Type } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import html2canvas from "html2canvas";
 
 interface DesignCanvasProps {
   backgroundImage?: string;
   width?: number;
   height?: number;
+  textBoxes: Array<{ id: number; text: string; x: number; y: number; styles: any }>;
+  setTextBoxes: React.Dispatch<React.SetStateAction<Array<{ id: number; text: string; x: number; y: number; styles: any }>>>;
+  selectedTextBox: number | null;
+  setSelectedTextBox: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
-export const DesignCanvas = ({ backgroundImage, width = 1080, height = 1080 }: DesignCanvasProps) => {
+export const DesignCanvas = ({ 
+  backgroundImage, 
+  width = 1080, 
+  height = 1080, 
+  textBoxes, 
+  setTextBoxes, 
+  selectedTextBox, 
+  setSelectedTextBox 
+}: DesignCanvasProps) => {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -21,11 +34,45 @@ export const DesignCanvas = ({ backgroundImage, width = 1080, height = 1080 }: D
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [textBoxes, setTextBoxes] = useState<Array<{ id: number; text: string; x: number; y: number; styles: object }>>([]);
-  const [selectedTextBox, setSelectedTextBox] = useState<number | null>(null);
   const [fileName, setFileName] = useState("my-news-design");
   
   const { defaultTextSettings } = useApp();
+  
+  // Adjust initial zoom to fit canvas in viewport (with some margin)
+  useEffect(() => {
+    const calculateZoom = () => {
+      if (!canvasRef.current) return;
+      
+      const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
+      if (!containerRect) return;
+      
+      // Calculate available space (with margins)
+      const availableWidth = containerRect.width - 40; // 20px margin on each side
+      const availableHeight = window.innerHeight * 0.6; // 60% of viewport height
+      
+      // Calculate zoom factors
+      const widthZoom = availableWidth / width;
+      const heightZoom = availableHeight / height;
+      
+      // Take the smaller zoom factor to ensure entire canvas is visible
+      const newZoom = Math.min(widthZoom, heightZoom, 1); // Cap at 1 to prevent too large
+      
+      setZoom(Math.max(newZoom, 0.1)); // Minimum zoom of 0.1
+      
+      // Center the canvas
+      setPosition({
+        x: (availableWidth - width * newZoom) / 2,
+        y: 0
+      });
+    };
+    
+    calculateZoom();
+    window.addEventListener('resize', calculateZoom);
+    
+    return () => {
+      window.removeEventListener('resize', calculateZoom);
+    };
+  }, [width, height]);
   
   // Handle adding a new text box
   const addTextBox = () => {
@@ -98,16 +145,28 @@ export const DesignCanvas = ({ backgroundImage, width = 1080, height = 1080 }: D
     });
     
     try {
-      // Using html2canvas would be ideal here, but for this example we'll just show a mock export
-      // In a real implementation, you'd use html2canvas or a similar library
+      // Use html2canvas to convert the design to an image
+      const canvas = await html2canvas(canvasRef.current, {
+        backgroundColor: backgroundImage ? 'transparent' : '#ffffff',
+        scale: 2, // Higher quality
+        useCORS: true, // Allow cross-origin images
+        logging: false,
+        allowTaint: true,
+        removeContainer: false
+      });
       
-      setTimeout(() => {
-        toast({
-          title: "تم التصدير بنجاح",
-          description: `تم حفظ التصميم باسم ${fileName}.png`,
-        });
-      }, 1000);
+      // Create a download link
+      const link = document.createElement('a');
+      link.download = `${fileName}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast({
+        title: "تم التصدير بنجاح",
+        description: `تم حفظ التصميم باسم ${fileName}.png`,
+      });
     } catch (error) {
+      console.error("Export error:", error);
       toast({
         variant: "destructive",
         title: "فشل التصدير",
@@ -208,10 +267,10 @@ export const DesignCanvas = ({ backgroundImage, width = 1080, height = 1080 }: D
         </div>
       </div>
       
-      {/* Canvas area */}
+      {/* Canvas area with auto-fit sizing */}
       <div 
         className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 relative"
-        style={{ minHeight: "500px" }}
+        style={{ height: "500px", maxHeight: "80vh" }}
       >
         <div className="absolute inset-0 overflow-auto">
           <div
@@ -224,12 +283,11 @@ export const DesignCanvas = ({ backgroundImage, width = 1080, height = 1080 }: D
           >
             <div
               ref={canvasRef}
-              className="relative"
+              className="relative origin-top-left"
               style={{
-                width: width * zoom,
-                height: height * zoom,
+                width: width,
+                height: height,
                 transform: `scale(${zoom})`,
-                transformOrigin: 'top left',
                 backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
                 backgroundSize: 'cover',
                 backgroundColor: backgroundImage ? 'transparent' : '#ffffff',
