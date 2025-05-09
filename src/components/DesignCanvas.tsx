@@ -1,9 +1,10 @@
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { useApp } from "@/contexts/AppContext";
-import { ZoomIn, ZoomOut, Grid, Download, Move, Type, Loader, AlertCircle } from "lucide-react";
+import { ZoomIn, ZoomOut, Grid, Download, Move, Type, Loader, AlertCircle, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import html2canvas from "html2canvas";
 
@@ -36,6 +37,7 @@ export const DesignCanvas = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [fileName, setFileName] = useState("my-news-design");
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   
   const { 
     defaultTextSettings, 
@@ -55,6 +57,21 @@ export const DesignCanvas = ({
       zoom,
       position
     });
+    
+    // تعيين قيمة افتراضية للزوم عند التحميل
+    const initialZoom = calculateIdealZoom();
+    setZoom(initialZoom);
+    
+    // وضع الكانفاس في المنتصف
+    const containerRect = canvasRef.current?.parentElement?.parentElement?.getBoundingClientRect();
+    if (containerRect) {
+      const availableWidth = containerRect.width;
+      const newPosition = {
+        x: (availableWidth - width * initialZoom) / 2,
+        y: 20
+      };
+      setPosition(newPosition);
+    }
   }, []);
 
   // تشخيص تحديث الصورة
@@ -62,18 +79,19 @@ export const DesignCanvas = ({
     console.log("Background image updated:", backgroundImage);
     // Reset image error when background changes
     setImageError(false);
+    setImageLoaded(false);
   }, [backgroundImage]);
 
   // Function to calculate ideal zoom based on container size
   const calculateIdealZoom = useCallback(() => {
-    if (!canvasRef.current) return 0.5;
+    if (!canvasRef.current) return 0.4;
     
     const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
-    if (!containerRect) return 0.5;
+    if (!containerRect) return 0.4;
     
     // Calculate available space (with margins)
-    const availableWidth = containerRect.width - 40; // 20px margin on each side
-    const availableHeight = window.innerHeight * 0.6; // 60% of viewport height
+    const availableWidth = containerRect.width - 40; 
+    const availableHeight = Math.min(window.innerHeight * 0.6, 500); // Limit height to 500px or 60% of viewport
     
     // Calculate zoom factors
     const widthZoom = availableWidth / width;
@@ -81,6 +99,8 @@ export const DesignCanvas = ({
     
     // Take the smaller zoom factor to ensure entire canvas is visible
     const newZoom = Math.min(widthZoom, heightZoom, 1); // Cap at 1 to prevent too large
+    
+    console.log("Calculated zoom:", newZoom, "Available space:", availableWidth, "x", availableHeight);
     
     return Math.max(newZoom, 0.1); // Minimum zoom of 0.1
   }, [width, height]);
@@ -90,7 +110,6 @@ export const DesignCanvas = ({
     const handleResize = () => {
       const newZoom = calculateIdealZoom();
       setZoom(newZoom);
-      console.log("Calculated zoom:", newZoom);
       
       // Center the canvas
       if (canvasRef.current) {
@@ -99,9 +118,8 @@ export const DesignCanvas = ({
           const availableWidth = containerRect.width - 40;
           const newPosition = {
             x: (availableWidth - width * newZoom) / 2,
-            y: 0
+            y: 20
           };
-          console.log("New position:", newPosition);
           setPosition(newPosition);
         }
       }
@@ -123,11 +141,14 @@ export const DesignCanvas = ({
       x: Math.max(width / 2 - 100, 0), // Center horizontally
       y: Math.max(height / 2 - 20, 0), // Center vertically
       styles: {
-        fontSize: defaultTextSettings.size + 'px',
-        fontFamily: defaultTextSettings.font,
-        color: defaultTextSettings.color,
+        fontSize: defaultTextSettings?.size + 'px' || '24px',
+        fontFamily: defaultTextSettings?.font || 'Tajawal, sans-serif',
+        color: defaultTextSettings?.color || '#ffffff',
         direction: 'rtl',
         textAlign: 'right',
+        background: 'rgba(0,0,0,0.3)',
+        padding: '8px',
+        borderRadius: '4px'
       }
     };
     setTextBoxes(prev => [...prev, newTextBox]);
@@ -156,15 +177,22 @@ export const DesignCanvas = ({
     }
   };
   
-  // Handle image loading error
+  // Handle image loading error and success
   const handleImageError = () => {
     console.error("Failed to load image:", backgroundImage);
     setImageError(true);
+    setImageLoaded(false);
     toast({
       variant: "destructive",
       title: "خطأ في تحميل الصورة",
       description: "تعذر تحميل صورة الخلفية. سيتم استخدام خلفية بديلة.",
     });
+  };
+  
+  const handleImageLoad = () => {
+    console.log("Image loaded successfully:", backgroundImage);
+    setImageLoaded(true);
+    setImageError(false);
   };
   
   // Handle keyboard shortcuts
@@ -224,19 +252,19 @@ export const DesignCanvas = ({
           ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
           ctx.font = '14px Arial';
           ctx.textAlign = 'end';
-          ctx.fillText(applicationName, canvas.width - 10, canvas.height - 10);
+          ctx.fillText(applicationName || 'تطبيق تصميم الأخبار', canvas.width - 10, canvas.height - 10);
         }
       }
       
       // Create a download link
       const link = document.createElement('a');
-      link.download = `${fileName}.${defaultExportFormat}`;
-      link.href = canvas.toDataURL(`image/${defaultExportFormat}`, defaultExportFormat === 'jpg' ? 0.9 : undefined);
+      link.download = `${fileName}.${defaultExportFormat || 'png'}`;
+      link.href = canvas.toDataURL(`image/${defaultExportFormat || 'png'}`, defaultExportFormat === 'jpg' ? 0.9 : undefined);
       link.click();
       
       toast({
         title: "تم التصدير بنجاح",
-        description: `تم حفظ التصميم باسم ${fileName}.${defaultExportFormat}`,
+        description: `تم حفظ التصميم باسم ${fileName}.${defaultExportFormat || 'png'}`,
       });
       
       // Show UI elements again
@@ -274,7 +302,7 @@ export const DesignCanvas = ({
         const availableWidth = containerRect.width - 40;
         setPosition({
           x: (availableWidth - width * newZoom) / 2,
-          y: 0
+          y: 20
         });
       }
     }
@@ -288,7 +316,8 @@ export const DesignCanvas = ({
         backgroundColor: '#f0f0f0',
         backgroundImage: 'linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%), linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%)',
         backgroundSize: '20px 20px',
-        backgroundPosition: '0 0, 10px 10px'
+        backgroundPosition: '0 0, 10px 10px',
+        border: '2px dashed #aaa'
       };
     }
     
@@ -296,6 +325,7 @@ export const DesignCanvas = ({
       backgroundImage: `url(${backgroundImage})`,
       backgroundSize: 'cover',
       backgroundColor: 'transparent',
+      border: '2px solid rgba(0,0,0,0.2)'
     };
   };
   
@@ -365,7 +395,7 @@ export const DesignCanvas = ({
                 className="border rounded px-3 py-1 text-sm w-40"
                 placeholder="اسم الملف"
               />
-              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">.{defaultExportFormat}</span>
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">.{defaultExportFormat || 'png'}</span>
             </div>
             
             <TooltipProvider>
@@ -417,14 +447,43 @@ export const DesignCanvas = ({
                 transform: `scale(${zoom})`,
                 ...getBackgroundStyle(),
                 transition: 'transform 0.2s ease',
-                border: '1px solid rgba(0,0,0,0.2)',
               }}
             >
+              {/* Preload image to handle errors and load events */}
+              {backgroundImage && (
+                <img 
+                  src={backgroundImage}
+                  className="hidden"
+                  onError={handleImageError}
+                  onLoad={handleImageLoad}
+                  alt="preload"
+                />
+              )}
+              
               {imageError && backgroundImage && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70">
                   <div className="text-center p-4">
                     <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-2" />
                     <p className="text-red-600 font-medium">تعذر تحميل الصورة</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => {
+                        setImageError(false);
+                        // إعادة تحميل الصورة بإضافة رقم عشوائي لمنع التخزين المؤقت
+                        const randomParam = `?r=${Math.random()}`;
+                        const newSrc = backgroundImage.includes('?') 
+                          ? `${backgroundImage}&r=${Math.random()}`
+                          : `${backgroundImage}${randomParam}`;
+                        
+                        const img = new Image();
+                        img.src = newSrc;
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      إعادة تحميل الصورة
+                    </Button>
                   </div>
                 </div>
               )}
@@ -435,16 +494,6 @@ export const DesignCanvas = ({
                   backgroundSize: '20px 20px',
                   pointerEvents: 'none'
                 }} />
-              )}
-              
-              {/* Image loader with onError handler */}
-              {backgroundImage && !imageError && (
-                <img 
-                  src={backgroundImage}
-                  className="hidden"
-                  onError={handleImageError}
-                  alt="preload"
-                />
               )}
               
               {textBoxes.map((textBox) => (

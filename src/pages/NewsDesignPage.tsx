@@ -9,8 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const NewsDesignPage = () => {
   const [templateType, setTemplateType] = useState<"breakingNews" | "general" | "update">("breakingNews");
@@ -19,6 +20,7 @@ const NewsDesignPage = () => {
   const [textBoxes, setTextBoxes] = useState<Array<{ id: number; text: string; x: number; y: number; styles: object }>>([]);
   const [selectedTextBox, setSelectedTextBox] = useState<number | null>(null);
   const [canvasError, setCanvasError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const { templates } = useApp();
   const { toast } = useToast();
@@ -36,39 +38,56 @@ const NewsDesignPage = () => {
   // Update background image when template type or canvas size changes
   const updateBackgroundImage = () => {
     try {
-      // تشخيص المشكلة
+      setIsLoading(true);
+      
+      // فحص البيانات
       console.log("Templates data:", templates);
       console.log("Current template type:", templateType);
       console.log("Current canvas size:", canvasSize);
       
-      if (!templates || !templates[templateType]) {
+      // التحقق مما إذا كانت بيانات القوالب متاحة
+      if (!templates) {
+        console.error("Templates object is undefined");
+        setCanvasError("عذراً، لم يتم تحميل بيانات القوالب بشكل صحيح");
+        setBackgroundImage("/placeholder.svg");
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!templates[templateType]) {
         console.error(`Template not found for type: ${templateType}`);
         setCanvasError(`لم يتم العثور على القالب: ${templateType}`);
+        setBackgroundImage("/placeholder.svg");
+        setIsLoading(false);
         return;
       }
       
       const templateImage = templates[templateType]?.[canvasSize];
       console.log("Loading template image:", templateType, canvasSize, templateImage);
-      setBackgroundImage(templateImage);
       
       if (!templateImage) {
+        console.warn("Template image not found, using default placeholder");
+        setBackgroundImage("/placeholder.svg");
         toast({
           title: "تنبيه",
-          description: "لم يتم العثور على صورة الخلفية للقالب المحدد. سيتم استخدام خلفية بيضاء.",
+          description: "لم يتم العثور على صورة الخلفية للقالب المحدد. سيتم استخدام خلفية افتراضية.",
         });
-        // تعيين صورة افتراضية بدلاً من undefined
-        setBackgroundImage("https://via.placeholder.com/1080x1080/f0f0f0/cccccc?text=قالب+غير+متوفر");
       } else {
-        setCanvasError(null);
+        setBackgroundImage(templateImage);
       }
+      
+      setCanvasError(null);
     } catch (error) {
       console.error("Error updating background image:", error);
       setCanvasError("حدث خطأ في تحميل صورة الخلفية");
+      setBackgroundImage("/placeholder.svg");
       toast({
         variant: "destructive",
         title: "خطأ",
         description: "حدث خطأ أثناء تحميل صورة الخلفية.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -91,10 +110,40 @@ const NewsDesignPage = () => {
   useEffect(() => {
     console.log("NewsDesignPage mounted");
     console.log("Available templates:", templates);
-    updateBackgroundImage();
+    
+    // إضافة مربع نص افتراضي إذا لم يتم إضافة نص بعد
+    if (textBoxes.length === 0) {
+      const defaultTextBox = {
+        id: Date.now(),
+        text: "أدخل العنوان هنا",
+        x: 50,
+        y: 50,
+        styles: {
+          fontSize: '24px',
+          fontFamily: 'Tajawal, sans-serif',
+          color: '#ffffff',
+          fontWeight: 'bold',
+          direction: 'rtl',
+          textAlign: 'right',
+          padding: '10px',
+          background: 'rgba(0,0,0,0.5)',
+          borderRadius: '4px'
+        }
+      };
+      setTextBoxes([defaultTextBox]);
+    }
   }, []);
   
   const dimensions = getCanvasDimensions();
+  
+  // إعادة تحميل الصورة عند الضغط على زر التحديث
+  const handleRefresh = () => {
+    updateBackgroundImage();
+    toast({
+      title: "جاري التحديث",
+      description: "يتم الآن إعادة تحميل صورة الخلفية.",
+    });
+  };
   
   return (
     <Layout>
@@ -134,6 +183,12 @@ const NewsDesignPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            
+            <div className="w-full sm:w-auto mt-auto">
+              <Button variant="outline" size="icon" onClick={handleRefresh} title="إعادة تحميل">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
         
@@ -150,16 +205,25 @@ const NewsDesignPage = () => {
               </Alert>
             )}
             
-            <div className="border-2 border-primary dark:border-primary rounded-lg overflow-hidden">
-              <DesignCanvas 
-                backgroundImage={backgroundImage} 
-                width={dimensions.width} 
-                height={dimensions.height}
-                textBoxes={textBoxes}
-                setTextBoxes={setTextBoxes}
-                selectedTextBox={selectedTextBox}
-                setSelectedTextBox={setSelectedTextBox}
-              />
+            <div className="border-4 border-primary dark:border-primary rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 min-h-[400px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-96">
+                  <div className="text-center">
+                    <RefreshCw className="animate-spin h-10 w-10 mx-auto mb-4 text-primary" />
+                    <p>جاري تحميل الكانفاس...</p>
+                  </div>
+                </div>
+              ) : (
+                <DesignCanvas 
+                  backgroundImage={backgroundImage} 
+                  width={dimensions.width} 
+                  height={dimensions.height}
+                  textBoxes={textBoxes}
+                  setTextBoxes={setTextBoxes}
+                  selectedTextBox={selectedTextBox}
+                  setSelectedTextBox={setSelectedTextBox}
+                />
+              )}
             </div>
             
             <div className="text-xs text-muted-foreground text-center">
