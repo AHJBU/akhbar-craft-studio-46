@@ -1,10 +1,9 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { useApp } from "@/contexts/AppContext";
-import { ZoomIn, ZoomOut, Grid, Download, Move, Type, Loader } from "lucide-react";
+import { ZoomIn, ZoomOut, Grid, Download, Move, Type, Loader, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import html2canvas from "html2canvas";
 
@@ -36,6 +35,7 @@ export const DesignCanvas = ({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [fileName, setFileName] = useState("my-news-design");
+  const [imageError, setImageError] = useState(false);
   
   const { 
     defaultTextSettings, 
@@ -44,6 +44,25 @@ export const DesignCanvas = ({
     defaultExportQuality,
     applicationName 
   } = useApp();
+
+  // تشخيص التحميل
+  useEffect(() => {
+    console.log("DesignCanvas mounted", { 
+      backgroundImage, 
+      width, 
+      height, 
+      textBoxes,
+      zoom,
+      position
+    });
+  }, []);
+
+  // تشخيص تحديث الصورة
+  useEffect(() => {
+    console.log("Background image updated:", backgroundImage);
+    // Reset image error when background changes
+    setImageError(false);
+  }, [backgroundImage]);
 
   // Function to calculate ideal zoom based on container size
   const calculateIdealZoom = useCallback(() => {
@@ -71,16 +90,19 @@ export const DesignCanvas = ({
     const handleResize = () => {
       const newZoom = calculateIdealZoom();
       setZoom(newZoom);
+      console.log("Calculated zoom:", newZoom);
       
       // Center the canvas
       if (canvasRef.current) {
         const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
         if (containerRect) {
           const availableWidth = containerRect.width - 40;
-          setPosition({
+          const newPosition = {
             x: (availableWidth - width * newZoom) / 2,
             y: 0
-          });
+          };
+          console.log("New position:", newPosition);
+          setPosition(newPosition);
         }
       }
     };
@@ -132,6 +154,17 @@ export const DesignCanvas = ({
         y: e.clientY - dragStart.y
       });
     }
+  };
+  
+  // Handle image loading error
+  const handleImageError = () => {
+    console.error("Failed to load image:", backgroundImage);
+    setImageError(true);
+    toast({
+      variant: "destructive",
+      title: "خطأ في تحميل الصورة",
+      description: "تعذر تحميل صورة الخلفية. سيتم استخدام خلفية بديلة.",
+    });
   };
   
   // Handle keyboard shortcuts
@@ -247,6 +280,25 @@ export const DesignCanvas = ({
     }
   };
   
+  // Get background style based on image or fallback
+  const getBackgroundStyle = () => {
+    if (!backgroundImage || imageError) {
+      // خلفية افتراضية إذا كانت الصورة غير متوفرة أو حدث خطأ في تحميلها
+      return {
+        backgroundColor: '#f0f0f0',
+        backgroundImage: 'linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%), linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%)',
+        backgroundSize: '20px 20px',
+        backgroundPosition: '0 0, 10px 10px'
+      };
+    }
+    
+    return {
+      backgroundImage: `url(${backgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundColor: 'transparent',
+    };
+  };
+  
   return (
     <div className="flex flex-col h-full">
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg mb-4">
@@ -342,9 +394,9 @@ export const DesignCanvas = ({
         </div>
       </div>
       
-      {/* Canvas area with auto-fit sizing */}
+      {/* Canvas area with auto-fit sizing and visible border */}
       <div 
-        className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 relative"
+        className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600 relative"
         style={{ height: "500px", maxHeight: "80vh" }}
       >
         <div className="absolute inset-0 overflow-auto">
@@ -358,22 +410,41 @@ export const DesignCanvas = ({
           >
             <div
               ref={canvasRef}
-              className="relative origin-top-left"
+              className="relative origin-top-left shadow-lg"
               style={{
                 width: width,
                 height: height,
                 transform: `scale(${zoom})`,
-                backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
-                backgroundSize: 'cover',
-                backgroundColor: backgroundImage ? 'transparent' : '#ffffff',
+                ...getBackgroundStyle(),
+                transition: 'transform 0.2s ease',
+                border: '1px solid rgba(0,0,0,0.2)',
               }}
             >
+              {imageError && backgroundImage && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70">
+                  <div className="text-center p-4">
+                    <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-2" />
+                    <p className="text-red-600 font-medium">تعذر تحميل الصورة</p>
+                  </div>
+                </div>
+              )}
+              
               {showGrid && (
                 <div className="absolute inset-0 grid edit-ui-element" style={{
                   backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
                   backgroundSize: '20px 20px',
                   pointerEvents: 'none'
                 }} />
+              )}
+              
+              {/* Image loader with onError handler */}
+              {backgroundImage && !imageError && (
+                <img 
+                  src={backgroundImage}
+                  className="hidden"
+                  onError={handleImageError}
+                  alt="preload"
+                />
               )}
               
               {textBoxes.map((textBox) => (
@@ -410,6 +481,17 @@ export const DesignCanvas = ({
             </div>
           </div>
         </div>
+        
+        {/* Hint for empty canvas */}
+        {textBoxes.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center p-6 bg-white bg-opacity-70 dark:bg-gray-800 dark:bg-opacity-70 rounded-lg">
+              <Type className="mx-auto h-12 w-12 text-primary mb-2" />
+              <p className="text-lg font-medium">أضف عناصر نص للبدء</p>
+              <p className="text-sm text-muted-foreground mt-1">اضغط Ctrl+T أو انقر على زر "إضافة نص" لإضافة مربع نص</p>
+            </div>
+          </div>
+        )}
         
         {/* Pan hint */}
         <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-2 rounded-lg opacity-70 flex items-center space-x-2 edit-ui-element">

@@ -261,7 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAutoSaveEnabled,
     defaultExportFormat,
     setDefaultExportFormat,
-    setDefaultExportQuality,
+    defaultExportQuality,
     setDefaultExportQuality
   };
   
