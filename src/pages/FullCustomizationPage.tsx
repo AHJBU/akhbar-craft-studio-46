@@ -5,7 +5,7 @@ import { DesignCanvas } from "@/components/DesignCanvas";
 import { TextStyleControls } from "@/components/TextStyleControls";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Upload, Image } from "lucide-react";
+import { Upload, Image as ImageIcon } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 
 const FullCustomizationPage = () => {
@@ -37,7 +37,7 @@ const FullCustomizationPage = () => {
     const imageUrl = URL.createObjectURL(file);
     
     // Get dimensions of the image
-    const img = new Image();
+    const img = document.createElement("img");
     img.onload = () => {
       setOriginalImageDimensions({ width: img.width, height: img.height });
       setBackgroundImage(imageUrl);
@@ -92,11 +92,11 @@ const FullCustomizationPage = () => {
             <h3 className="text-lg font-semibold mb-4">أو استخدم شعار</h3>
             <div className="flex flex-wrap justify-center gap-4">
               <Button variant="outline" onClick={() => useLogoAsBackground("horizontal")}>
-                <Image className="h-4 w-4 ml-2" />
+                <ImageIcon className="h-4 w-4 ml-2" />
                 الشعار الأفقي
               </Button>
               <Button variant="outline" onClick={() => useLogoAsBackground("square")}>
-                <Image className="h-4 w-4 ml-2" />
+                <ImageIcon className="h-4 w-4 ml-2" />
                 الشعار المربع
               </Button>
             </div>

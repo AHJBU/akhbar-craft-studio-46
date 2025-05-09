@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export const SettingsLoginForm = () => {
   const [username, setUsername] = useState("");
@@ -13,17 +14,36 @@ export const SettingsLoginForm = () => {
   const [loading, setLoading] = useState(false);
   
   const { login } = useApp();
+  const { toast } = useToast();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // If this is the first time, use default values if fields are empty
-    const finalUsername = username || "admin";
-    const finalPassword = password || "asdqwe123#";
-    
-    await login(finalUsername, finalPassword);
-    setLoading(false);
+    try {
+      // If this is the first time, use default values if fields are empty
+      const finalUsername = username.trim() || "admin";
+      const finalPassword = password.trim() || "asdqwe123#";
+      
+      const success = await login(finalUsername, finalPassword);
+      
+      if (success && isFirstTime) {
+        toast({
+          title: "تم إعداد حساب المسؤول بنجاح",
+          description: "يمكنك الآن الوصول إلى صفحة الإعدادات",
+        });
+        setIsFirstTime(false);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "حدث خطأ",
+        description: "حدث خطأ أثناء محاولة تسجيل الدخول",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { DesignCanvas } from "@/components/DesignCanvas";
 import { TextStyleControls } from "@/components/TextStyleControls";
@@ -37,19 +37,17 @@ const NewsDesignPage = () => {
   // Handle template type change
   const handleTemplateTypeChange = (value: string) => {
     setTemplateType(value as "breakingNews" | "general" | "update");
-    updateBackgroundImage();
   };
   
   // Handle canvas size change
   const handleCanvasSizeChange = (value: string) => {
     setCanvasSize(value as "square" | "story" | "post");
-    updateBackgroundImage();
   };
   
-  // Initialize background image on first render
-  useState(() => {
+  // Update background image when template type or canvas size changes
+  useEffect(() => {
     updateBackgroundImage();
-  });
+  }, [templateType, canvasSize, templates]);
   
   const dimensions = getCanvasDimensions();
   
