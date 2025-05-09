@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { defaultTemplates, defaultLogos } from "@/data/dummyData";
+import { initializeCustomSettings } from "@/utils/customFonts";
 
 // Define types for our context
 interface AppContextType {
@@ -83,13 +83,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Logo images for custom design with localStorage persistence
   const [logos, setLogos] = useState(() => {
     const savedLogos = localStorage.getItem('logos');
-    return savedLogos ? JSON.parse(savedLogos) : defaultLogos;
+    let loadedLogos;
+    try {
+      loadedLogos = savedLogos ? JSON.parse(savedLogos) : defaultLogos;
+      console.log("Loaded logos:", loadedLogos);
+      return loadedLogos;
+    } catch (error) {
+      console.error("Error loading logos:", error);
+      return defaultLogos;
+    }
   });
   
   // Template images with localStorage persistence
   const [templates, setTemplates] = useState(() => {
     const savedTemplates = localStorage.getItem('templates');
-    return savedTemplates ? JSON.parse(savedTemplates) : defaultTemplates;
+    let loadedTemplates;
+    try {
+      loadedTemplates = savedTemplates ? JSON.parse(savedTemplates) : defaultTemplates;
+      console.log("Loaded templates:", loadedTemplates);
+      return loadedTemplates;
+    } catch (error) {
+      console.error("Error loading templates:", error);
+      return defaultTemplates;
+    }
   });
 
   // Censorship rules with localStorage persistence
@@ -118,6 +134,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [defaultExportQuality, setDefaultExportQuality] = useState(() => {
     return localStorage.getItem('defaultExportQuality') || "high";
   });
+  
+  // Initialize custom settings on app startup
+  useEffect(() => {
+    initializeCustomSettings();
+    document.title = applicationName;
+  }, []);
   
   // Persist theme changes to localStorage
   useEffect(() => {
@@ -239,7 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAutoSaveEnabled,
     defaultExportFormat,
     setDefaultExportFormat,
-    defaultExportQuality,
+    setDefaultExportQuality,
     setDefaultExportQuality
   };
   

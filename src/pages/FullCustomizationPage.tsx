@@ -106,6 +106,11 @@ const FullCustomizationPage = () => {
     };
     img.src = logoUrl;
   };
+
+  // Check if logos are available when component mounts
+  useEffect(() => {
+    console.log("Available logos:", logos);
+  }, [logos]);
   
   return (
     <Layout>
@@ -137,7 +142,7 @@ const FullCustomizationPage = () => {
             </div>
             <h3 className="text-lg font-semibold mb-2">رفع صورة</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">اسحب وأفلت صورة هنا، أو انقر لاختيار صورة</p>
-            <Button onClick={triggerFileUpload} className="mb-4">اختيار صورة</Button>
+            <Button onClick={triggerFileUpload} className="mb-4 bg-primary hover:bg-primary/90">اختيار صورة</Button>
           </div>
           
           <div className="border-t border-gray-200 dark:border-gray-700 pt-8">

@@ -1,10 +1,10 @@
-
 import { useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { Moon, Sun, Languages, Settings } from 'lucide-react';
+import { Moon, Sun, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from 'react-router-dom';
+import { initializeCustomSettings } from '@/utils/customFonts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,11 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const { theme, setTheme, applicationName } = useApp();
+  
+  // Initialize custom settings on first render
+  useEffect(() => {
+    initializeCustomSettings();
+  }, []);
   
   // Apply theme on initial render and when theme changes
   useEffect(() => {

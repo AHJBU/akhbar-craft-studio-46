@@ -47,3 +47,12 @@ export const initializeFavicon = () => {
     console.error('Error initializing favicon:', error);
   }
 };
+
+// Apply custom settings when app loads - this function will be called from main.tsx
+export const initializeCustomSettings = () => {
+  // Call both initialization functions
+  loadCustomFonts();
+  initializeFavicon();
+  
+  console.log('Custom settings initialized');
+};
