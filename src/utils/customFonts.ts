@@ -17,7 +17,7 @@ export const loadCustomFonts = () => {
       // Check if this font is already loaded
       const existingLinks = document.querySelectorAll(`link[href="${font.url}"]`);
       if (existingLinks.length === 0) {
-        const linkElement = document.createElement('link');
+        const linkElement = document.createElement('link') as HTMLLinkElement;
         linkElement.rel = 'stylesheet';
         linkElement.href = font.url;
         document.head.appendChild(linkElement);
@@ -35,9 +35,9 @@ export const initializeFavicon = () => {
     const siteFavicon = localStorage.getItem('siteFavicon');
     if (!siteFavicon) return;
     
-    let faviconLink = document.querySelector('link[rel="icon"]');
+    let faviconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
     if (!faviconLink) {
-      faviconLink = document.createElement('link');
+      faviconLink = document.createElement('link') as HTMLLinkElement;
       faviconLink.rel = 'icon';
       document.head.appendChild(faviconLink);
     }

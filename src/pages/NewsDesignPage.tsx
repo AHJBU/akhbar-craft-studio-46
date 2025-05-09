@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useApp } from "@/contexts/AppContext";
+import { useToast } from "@/hooks/use-toast";
 
 const NewsDesignPage = () => {
   const [templateType, setTemplateType] = useState<"breakingNews" | "general" | "update">("breakingNews");
@@ -17,6 +18,7 @@ const NewsDesignPage = () => {
   const [selectedTextBox, setSelectedTextBox] = useState<number | null>(null);
   
   const { templates } = useApp();
+  const { toast } = useToast();
   
   // Calculate canvas dimensions based on size
   const getCanvasDimensions = () => {
@@ -30,8 +32,25 @@ const NewsDesignPage = () => {
   
   // Update background image when template type or canvas size changes
   const updateBackgroundImage = () => {
-    const templateImage = templates[templateType]?.[canvasSize];
-    setBackgroundImage(templateImage);
+    try {
+      const templateImage = templates[templateType]?.[canvasSize];
+      console.log("Loading template image:", templateType, canvasSize, templateImage);
+      setBackgroundImage(templateImage);
+      
+      if (!templateImage) {
+        toast({
+          title: "تنبيه",
+          description: "لم يتم العثور على صورة الخلفية للقالب المحدد. سيتم استخدام خلفية بيضاء.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating background image:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء تحميل صورة الخلفية.",
+      });
+    }
   };
   
   // Handle template type change
@@ -48,6 +67,13 @@ const NewsDesignPage = () => {
   useEffect(() => {
     updateBackgroundImage();
   }, [templateType, canvasSize, templates]);
+
+  // Initial setup on component mount
+  useEffect(() => {
+    console.log("NewsDesignPage mounted");
+    console.log("Available templates:", templates);
+    updateBackgroundImage();
+  }, []);
   
   const dimensions = getCanvasDimensions();
   

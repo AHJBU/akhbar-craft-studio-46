@@ -26,10 +26,10 @@ export const Layout = ({ children }: LayoutProps) => {
     }
     
     // Update theme color meta tag
-    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement;
     if (!metaThemeColor) {
-      metaThemeColor = document.createElement('meta');
-      metaThemeColor.name = 'theme-color';
+      metaThemeColor = document.createElement('meta') as HTMLMetaElement;
+      metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
     metaThemeColor.setAttribute(
