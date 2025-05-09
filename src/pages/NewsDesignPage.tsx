@@ -30,7 +30,7 @@ const NewsDesignPage = () => {
   
   // Update background image when template type or canvas size changes
   const updateBackgroundImage = () => {
-    const templateImage = templates[templateType][canvasSize];
+    const templateImage = templates[templateType]?.[canvasSize];
     setBackgroundImage(templateImage);
   };
   

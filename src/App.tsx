@@ -22,6 +22,7 @@ const AppRoutes = () => {
       <Route path="/custom-design" element={<FullCustomizationPage />} />
       <Route path="/text-censorship" element={<TextCensorshipPage />} />
       <Route path="/admin" element={<SettingsPage />} />
+      <Route path="/settings" element={<Navigate to="/admin" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

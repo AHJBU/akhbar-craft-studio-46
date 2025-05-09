@@ -1,6 +1,6 @@
 
 import { useApp } from '@/contexts/AppContext';
-import { Moon, Sun, Settings, Languages } from 'lucide-react';
+import { Moon, Sun, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from 'react-router-dom';
@@ -50,21 +50,6 @@ export const Layout = ({ children }: LayoutProps) => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>تغيير اللغة</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link to="/settings">
-                      <Settings className="h-5 w-5" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>الإعدادات</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
