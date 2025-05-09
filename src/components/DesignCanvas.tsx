@@ -1,10 +1,10 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { useApp } from "@/contexts/AppContext";
-import { ZoomIn, ZoomOut, Grid, Download, Move, Type } from "lucide-react";
+import { ZoomIn, ZoomOut, Grid, Download, Move, Type, Loader } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import html2canvas from "html2canvas";
 
@@ -32,50 +32,69 @@ export const DesignCanvas = ({
   const [zoom, setZoom] = useState(1);
   const [showGrid, setShowGrid] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [fileName, setFileName] = useState("my-news-design");
   
-  const { defaultTextSettings } = useApp();
+  const { 
+    defaultTextSettings, 
+    watermarkEnabled, 
+    defaultExportFormat, 
+    defaultExportQuality,
+    applicationName 
+  } = useApp();
+
+  // Function to calculate ideal zoom based on container size
+  const calculateIdealZoom = useCallback(() => {
+    if (!canvasRef.current) return 0.5;
+    
+    const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
+    if (!containerRect) return 0.5;
+    
+    // Calculate available space (with margins)
+    const availableWidth = containerRect.width - 40; // 20px margin on each side
+    const availableHeight = window.innerHeight * 0.6; // 60% of viewport height
+    
+    // Calculate zoom factors
+    const widthZoom = availableWidth / width;
+    const heightZoom = availableHeight / height;
+    
+    // Take the smaller zoom factor to ensure entire canvas is visible
+    const newZoom = Math.min(widthZoom, heightZoom, 1); // Cap at 1 to prevent too large
+    
+    return Math.max(newZoom, 0.1); // Minimum zoom of 0.1
+  }, [width, height]);
   
   // Adjust initial zoom to fit canvas in viewport (with some margin)
   useEffect(() => {
-    const calculateZoom = () => {
-      if (!canvasRef.current) return;
-      
-      const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
-      if (!containerRect) return;
-      
-      // Calculate available space (with margins)
-      const availableWidth = containerRect.width - 40; // 20px margin on each side
-      const availableHeight = window.innerHeight * 0.6; // 60% of viewport height
-      
-      // Calculate zoom factors
-      const widthZoom = availableWidth / width;
-      const heightZoom = availableHeight / height;
-      
-      // Take the smaller zoom factor to ensure entire canvas is visible
-      const newZoom = Math.min(widthZoom, heightZoom, 1); // Cap at 1 to prevent too large
-      
-      setZoom(Math.max(newZoom, 0.1)); // Minimum zoom of 0.1
+    const handleResize = () => {
+      const newZoom = calculateIdealZoom();
+      setZoom(newZoom);
       
       // Center the canvas
-      setPosition({
-        x: (availableWidth - width * newZoom) / 2,
-        y: 0
-      });
+      if (canvasRef.current) {
+        const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
+        if (containerRect) {
+          const availableWidth = containerRect.width - 40;
+          setPosition({
+            x: (availableWidth - width * newZoom) / 2,
+            y: 0
+          });
+        }
+      }
     };
     
-    calculateZoom();
-    window.addEventListener('resize', calculateZoom);
+    handleResize();
+    window.addEventListener('resize', handleResize);
     
     return () => {
-      window.removeEventListener('resize', calculateZoom);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [width, height]);
+  }, [width, height, calculateIdealZoom]);
   
   // Handle adding a new text box
-  const addTextBox = () => {
+  const addTextBox = useCallback(() => {
     const newTextBox = {
       id: Date.now(),
       text: "أدخل النص هنا",
@@ -89,9 +108,9 @@ export const DesignCanvas = ({
         textAlign: 'right',
       }
     };
-    setTextBoxes([...textBoxes, newTextBox]);
+    setTextBoxes(prev => [...prev, newTextBox]);
     setSelectedTextBox(newTextBox.id);
-  };
+  }, [width, height, defaultTextSettings, setTextBoxes, setSelectedTextBox]);
   
   // Handle canvas dragging
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -133,11 +152,13 @@ export const DesignCanvas = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [textBoxes]);
+  }, [addTextBox]);
   
   // Export the design
   const handleExport = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || isExporting) return;
+    
+    setIsExporting(true);
     
     toast({
       title: "جاري التصدير...",
@@ -145,26 +166,48 @@ export const DesignCanvas = ({
     });
     
     try {
+      // Hide UI elements for export
+      const editModeElements = canvasRef.current.querySelectorAll('.edit-ui-element');
+      editModeElements.forEach(el => (el as HTMLElement).style.display = 'none');
+      
+      // Set quality based on settings
+      const scale = defaultExportQuality === 'high' ? 3 : 
+                   defaultExportQuality === 'medium' ? 2 : 1;
+      
       // Use html2canvas to convert the design to an image
       const canvas = await html2canvas(canvasRef.current, {
         backgroundColor: backgroundImage ? 'transparent' : '#ffffff',
-        scale: 2, // Higher quality
+        scale: scale, // Higher quality
         useCORS: true, // Allow cross-origin images
         logging: false,
         allowTaint: true,
         removeContainer: false
       });
       
+      // Add watermark if enabled
+      if (watermarkEnabled) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'end';
+          ctx.fillText(applicationName, canvas.width - 10, canvas.height - 10);
+        }
+      }
+      
       // Create a download link
       const link = document.createElement('a');
-      link.download = `${fileName}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = `${fileName}.${defaultExportFormat}`;
+      link.href = canvas.toDataURL(`image/${defaultExportFormat}`, defaultExportFormat === 'jpg' ? 0.9 : undefined);
       link.click();
       
       toast({
         title: "تم التصدير بنجاح",
-        description: `تم حفظ التصميم باسم ${fileName}.png`,
+        description: `تم حفظ التصميم باسم ${fileName}.${defaultExportFormat}`,
       });
+      
+      // Show UI elements again
+      editModeElements.forEach(el => (el as HTMLElement).style.display = '');
     } catch (error) {
       console.error("Export error:", error);
       toast({
@@ -172,6 +215,8 @@ export const DesignCanvas = ({
         title: "فشل التصدير",
         description: "حدث خطأ أثناء محاولة تصدير التصميم.",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
   
@@ -181,7 +226,25 @@ export const DesignCanvas = ({
   };
   
   const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 0.1, 0.5));
+    setZoom((prev) => Math.max(prev - 0.1, 0.1));
+  };
+
+  // Reset zoom and center canvas
+  const handleResetZoom = () => {
+    const newZoom = calculateIdealZoom();
+    setZoom(newZoom);
+    
+    // Center the canvas
+    if (canvasRef.current) {
+      const containerRect = canvasRef.current.parentElement?.parentElement?.getBoundingClientRect();
+      if (containerRect) {
+        const availableWidth = containerRect.width - 40;
+        setPosition({
+          x: (availableWidth - width * newZoom) / 2,
+          y: 0
+        });
+      }
+    }
   };
   
   return (
@@ -223,7 +286,7 @@ export const DesignCanvas = ({
               <div className="w-24">
                 <Slider
                   value={[zoom * 100]}
-                  min={50}
+                  min={10}
                   max={300}
                   step={10}
                   className="w-full"
@@ -234,6 +297,9 @@ export const DesignCanvas = ({
                 <ZoomIn className="h-4 w-4" />
               </Button>
               <span className="text-sm text-gray-500">{Math.round(zoom * 100)}%</span>
+              <Button variant="outline" size="sm" onClick={handleResetZoom}>
+                ضبط تلقائي
+              </Button>
             </div>
           </div>
           
@@ -247,15 +313,24 @@ export const DesignCanvas = ({
                 className="border rounded px-3 py-1 text-sm w-40"
                 placeholder="اسم الملف"
               />
-              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">.png</span>
+              <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">.{defaultExportFormat}</span>
             </div>
             
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button onClick={handleExport}>
-                    <Download className="h-4 w-4 ml-2" />
-                    تصدير
+                  <Button onClick={handleExport} disabled={isExporting}>
+                    {isExporting ? (
+                      <>
+                        <Loader className="h-4 w-4 ml-2 animate-spin" />
+                        جاري التصدير...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 ml-2" />
+                        تصدير
+                      </>
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -294,7 +369,7 @@ export const DesignCanvas = ({
               }}
             >
               {showGrid && (
-                <div className="absolute inset-0 grid" style={{
+                <div className="absolute inset-0 grid edit-ui-element" style={{
                   backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
                   backgroundSize: '20px 20px',
                   pointerEvents: 'none'
@@ -304,7 +379,7 @@ export const DesignCanvas = ({
               {textBoxes.map((textBox) => (
                 <div
                   key={textBox.id}
-                  className={`absolute text-box p-2 ${selectedTextBox === textBox.id ? 'border-2 border-primary' : ''}`}
+                  className={`absolute text-box ${selectedTextBox === textBox.id ? 'border-2 border-primary edit-ui-element' : ''}`}
                   style={{
                     top: textBox.y,
                     left: textBox.x,
@@ -337,7 +412,7 @@ export const DesignCanvas = ({
         </div>
         
         {/* Pan hint */}
-        <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-2 rounded-lg opacity-70 flex items-center space-x-2">
+        <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-2 rounded-lg opacity-70 flex items-center space-x-2 edit-ui-element">
           <Move className="h-4 w-4" />
           <span className="text-xs">انقر واسحب للتحريك</span>
         </div>

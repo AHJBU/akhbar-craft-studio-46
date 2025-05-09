@@ -7,37 +7,55 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateImagesManager } from "@/components/TemplateImagesManager";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Check, Palette, Type, FileImage, FileOutput, Settings } from "lucide-react";
+import { Plus, Trash, Check, Palette, Type, FileImage, FileOutput, Settings, Edit, Globe } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const SettingsPage = () => {
   const [currentTab, setCurrentTab] = useState("appearance");
   const { toast } = useToast();
   const { 
     theme, setTheme, 
-    fonts, defaultTextSettings, setDefaultTextSettings,
+    fonts, defaultTextSettings,
     colors, 
     watermarkEnabled, setWatermarkEnabled,
     autoSaveEnabled, setAutoSaveEnabled,
     defaultExportFormat, setDefaultExportFormat,
-    defaultExportQuality, setDefaultExportQuality
+    defaultExportQuality, setDefaultExportQuality,
+    applicationName, setApplicationName,
+    applicationDescription, setApplicationDescription,
+    censorshipRules, addCensorshipRule, removeCensorshipRule, updateCensorshipRule
   } = useApp();
   
   const [selectedFont, setSelectedFont] = useState(defaultTextSettings.font);
   const [selectedColor, setSelectedColor] = useState(defaultTextSettings.color);
   const [fontSize, setFontSize] = useState(defaultTextSettings.size.toString());
   
+  // New states for censorship rule management
+  const [newRuleOriginal, setNewRuleOriginal] = useState("");
+  const [newRuleReplacement, setNewRuleReplacement] = useState("");
+  
+  // New states for custom fonts
+  const [customFontName, setCustomFontName] = useState("");
+  const [customFontUrl, setCustomFontUrl] = useState("");
+
+  // New states for site settings
+  const [siteNameInput, setSiteNameInput] = useState(applicationName);
+  const [siteDescInput, setSiteDescInput] = useState(applicationDescription);
+  const [siteFaviconUrl, setSiteFaviconUrl] = useState("");
+  
   // Save appearance settings
   const saveAppearanceSettings = () => {
-    setDefaultTextSettings({
+    localStorage.setItem('defaultTextSettings', JSON.stringify({
       font: selectedFont,
       color: selectedColor,
       size: parseInt(fontSize)
-    });
+    }));
     
     toast({
       title: "تم حفظ الإعدادات",
@@ -45,19 +63,92 @@ const SettingsPage = () => {
     });
   };
   
-  // Save export settings
-  const saveExportSettings = () => {
+  // Save custom font
+  const saveCustomFont = () => {
+    if (!customFontName.trim() || !customFontUrl.trim()) {
+      toast({
+        title: "بيانات غير مكتملة",
+        description: "يرجى إدخال اسم الخط ورابط ملف CSS",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Add font link to head
+    const linkElement = document.createElement('link');
+    linkElement.rel = 'stylesheet';
+    linkElement.href = customFontUrl;
+    document.head.appendChild(linkElement);
+    
+    // Save to local storage
+    const customFonts = JSON.parse(localStorage.getItem('customFonts') || '[]');
+    customFonts.push({ name: customFontName, url: customFontUrl });
+    localStorage.setItem('customFonts', JSON.stringify(customFonts));
+    
     toast({
-      title: "تم حفظ الإعدادات",
-      description: "تم حفظ إعدادات التصدير والرقابة بنجاح",
+      title: "تم إضافة الخط",
+      description: `تم إضافة الخط ${customFontName} بنجاح`
     });
+    
+    // Reset form
+    setCustomFontName("");
+    setCustomFontUrl("");
   };
   
-  // Save general settings
-  const saveGeneralSettings = () => {
+  // Add censorship rule
+  const handleAddCensorshipRule = () => {
+    if (!newRuleOriginal.trim() || !newRuleReplacement.trim()) {
+      toast({
+        title: "بيانات غير مكتملة",
+        description: "يرجى إدخال الكلمة الأصلية والكلمة البديلة",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    addCensorshipRule(newRuleOriginal, newRuleReplacement);
+    
     toast({
-      title: "تم حفظ الإعدادات",
-      description: "تم حفظ الإعدادات العامة بنجاح",
+      title: "تم إضافة القاعدة",
+      description: `تم إضافة قاعدة استبدال الكلمة "${newRuleOriginal}" بالكلمة "${newRuleReplacement}"`
+    });
+    
+    setNewRuleOriginal("");
+    setNewRuleReplacement("");
+  };
+  
+  // Save site settings
+  const saveSiteSettings = () => {
+    if (!siteNameInput.trim()) {
+      toast({
+        title: "اسم الموقع مطلوب",
+        description: "يرجى إدخال اسم للموقع",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setApplicationName(siteNameInput);
+    setApplicationDescription(siteDescInput);
+    
+    // Update favicon if provided
+    if (siteFaviconUrl.trim()) {
+      const faviconLink = document.querySelector('link[rel="icon"]');
+      if (faviconLink) {
+        faviconLink.setAttribute('href', siteFaviconUrl);
+        localStorage.setItem('siteFavicon', siteFaviconUrl);
+      } else {
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.href = siteFaviconUrl;
+        document.head.appendChild(newLink);
+        localStorage.setItem('siteFavicon', siteFaviconUrl);
+      }
+    }
+    
+    toast({
+      title: "تم حفظ إعدادات الموقع",
+      description: "تم تحديث اسم الموقع ووصفه وأيقونته بنجاح"
     });
   };
   
@@ -69,7 +160,7 @@ const SettingsPage = () => {
         </div>
         
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-          <TabsList className="w-full grid grid-cols-1 md:grid-cols-4">
+          <TabsList className="w-full grid grid-cols-1 md:grid-cols-5">
             <TabsTrigger value="appearance">
               <div className="flex items-center gap-2">
                 <Palette className="h-4 w-4" />
@@ -92,6 +183,12 @@ const SettingsPage = () => {
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 <span>إعدادات عامة</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="site">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                <span>إعدادات الموقع</span>
               </div>
             </TabsTrigger>
           </TabsList>
@@ -160,7 +257,7 @@ const SettingsPage = () => {
                 <div className="space-y-2">
                   <Label>اللون الافتراضي للنصوص</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {colors.map(color => (
+                    {colors.map((color) => (
                       <Button
                         key={color}
                         variant="outline"
@@ -191,6 +288,38 @@ const SettingsPage = () => {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Custom Web Fonts */}
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>إضافة خطوط ويب مخصصة</CardTitle>
+                <CardDescription>إضافة خطوط من مصادر خارجية مثل Google Fonts</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="fontName">اسم الخط</Label>
+                  <Input
+                    id="fontName"
+                    value={customFontName}
+                    onChange={(e) => setCustomFontName(e.target.value)}
+                    placeholder='مثال: "Roboto" أو "Noto Sans Arabic"'
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fontUrl">رابط CSS للخط</Label>
+                  <Input
+                    id="fontUrl"
+                    value={customFontUrl}
+                    onChange={(e) => setCustomFontUrl(e.target.value)}
+                    placeholder="https://fonts.googleapis.com/css2?family=..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    يمكنك الحصول على رابط من Google Fonts أو أي مصدر آخر للخطوط
+                  </p>
+                </div>
+                <Button onClick={saveCustomFont}>إضافة الخط</Button>
+              </CardContent>
+            </Card>
           </TabsContent>
           
           <TabsContent value="templates">
@@ -201,62 +330,138 @@ const SettingsPage = () => {
           </TabsContent>
           
           <TabsContent value="export">
-            <Card>
-              <CardHeader>
-                <CardTitle>إعدادات التصدير والرقابة</CardTitle>
-                <CardDescription>تخصيص إعدادات تصدير التصميمات والرقابة</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Default Export Format */}
-                <div className="space-y-2">
-                  <Label>صيغة التصدير الافتراضية</Label>
-                  <Select 
-                    value={defaultExportFormat} 
-                    onValueChange={setDefaultExportFormat}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="png">PNG</SelectItem>
-                      <SelectItem value="jpg">JPG</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Export Quality */}
-                <div className="space-y-2">
-                  <Label>جودة التصدير</Label>
-                  <Select 
-                    value={defaultExportQuality} 
-                    onValueChange={setDefaultExportQuality}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">منخفضة</SelectItem>
-                      <SelectItem value="medium">متوسطة</SelectItem>
-                      <SelectItem value="high">عالية</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Watermark */}
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <Switch 
-                    id="watermark" 
-                    checked={watermarkEnabled} 
-                    onCheckedChange={setWatermarkEnabled} 
-                  />
-                  <Label htmlFor="watermark">إضافة العلامة المائية إلى التصميمات</Label>
-                </div>
-                
-                <Button onClick={saveExportSettings} className="mt-4">
-                  حفظ إعدادات التصدير
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>إعدادات التصدير</CardTitle>
+                  <CardDescription>تخصيص إعدادات تصدير التصميمات</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Default Export Format */}
+                  <div className="space-y-2">
+                    <Label>صيغة التصدير الافتراضية</Label>
+                    <Select 
+                      value={defaultExportFormat} 
+                      onValueChange={setDefaultExportFormat}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="png">PNG</SelectItem>
+                        <SelectItem value="jpg">JPG</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Export Quality */}
+                  <div className="space-y-2">
+                    <Label>جودة التصدير</Label>
+                    <Select 
+                      value={defaultExportQuality} 
+                      onValueChange={setDefaultExportQuality}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">منخفضة</SelectItem>
+                        <SelectItem value="medium">متوسطة</SelectItem>
+                        <SelectItem value="high">عالية</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Watermark */}
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <Switch 
+                      id="watermark" 
+                      checked={watermarkEnabled} 
+                      onCheckedChange={setWatermarkEnabled} 
+                    />
+                    <Label htmlFor="watermark">إضافة العلامة المائية إلى التصميمات</Label>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>إدارة قواعد الرقابة النصية</CardTitle>
+                  <CardDescription>تخصيص قواعد استبدال الكلمات عند استخدام أداة الرقابة النصية</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Add new rule */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="originalWord">الكلمة الأصلية</Label>
+                      <Input 
+                        id="originalWord" 
+                        value={newRuleOriginal}
+                        onChange={e => setNewRuleOriginal(e.target.value)}
+                        placeholder="أدخل الكلمة المراد استبدالها"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="replacementWord">الكلمة البديلة</Label>
+                      <Input 
+                        id="replacementWord" 
+                        value={newRuleReplacement}
+                        onChange={e => setNewRuleReplacement(e.target.value)}
+                        placeholder="أدخل النص البديل"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button className="w-full" onClick={handleAddCensorshipRule}>
+                        <Plus className="ml-2 h-4 w-4" /> إضافة قاعدة
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Current Rules */}
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-2">قواعد الاستبدال الحالية</h3>
+                    <Card>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-60">
+                          {censorshipRules.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              لا توجد قواعد استبدال. أضف قواعد جديدة من الأعلى.
+                            </div>
+                          ) : (
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-right p-3">الكلمة الأصلية</th>
+                                  <th className="text-right p-3">الكلمة البديلة</th>
+                                  <th className="p-3 w-20">إجراءات</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {censorshipRules.map((rule, index) => (
+                                  <tr key={index} className="border-b">
+                                    <td className="p-3">{rule.original}</td>
+                                    <td className="p-3">{rule.replacement}</td>
+                                    <td className="p-3 text-center">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => removeCensorshipRule(index)}
+                                      >
+                                        <Trash className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           
           <TabsContent value="general">
@@ -275,9 +480,59 @@ const SettingsPage = () => {
                   />
                   <Label htmlFor="auto-save">حفظ تلقائي للتغييرات</Label>
                 </div>
-                
-                <Button onClick={saveGeneralSettings} className="mt-4">
-                  حفظ الإعدادات العامة
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="site">
+            <Card>
+              <CardHeader>
+                <CardTitle>إعدادات الموقع</CardTitle>
+                <CardDescription>تخصيص معلومات الموقع الأساسية</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Site Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="siteName">اسم الموقع</Label>
+                  <Input
+                    id="siteName"
+                    value={siteNameInput}
+                    onChange={(e) => setSiteNameInput(e.target.value)}
+                    placeholder="أدخل اسم الموقع"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    سيظهر في عنوان الصفحة والعلامة المائية
+                  </p>
+                </div>
+
+                {/* Site Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="siteDesc">وصف الموقع</Label>
+                  <Textarea
+                    id="siteDesc"
+                    value={siteDescInput}
+                    onChange={(e) => setSiteDescInput(e.target.value)}
+                    placeholder="أدخل وصفاً مختصراً للموقع"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Site Favicon */}
+                <div className="space-y-2">
+                  <Label htmlFor="siteFavicon">أيقونة الموقع (favicon)</Label>
+                  <Input
+                    id="siteFavicon"
+                    value={siteFaviconUrl}
+                    onChange={(e) => setSiteFaviconUrl(e.target.value)}
+                    placeholder="أدخل رابط الأيقونة (مثلاً: /favicon.ico)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    أدخل رابط الأيقونة التي ستظهر في علامة التبويب
+                  </p>
+                </div>
+
+                <Button onClick={saveSiteSettings} className="mt-4">
+                  حفظ إعدادات الموقع
                 </Button>
               </CardContent>
             </Card>

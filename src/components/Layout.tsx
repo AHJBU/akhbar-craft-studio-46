@@ -1,6 +1,7 @@
 
+import { useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { Moon, Sun, Languages } from 'lucide-react';
+import { Moon, Sun, Languages, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from 'react-router-dom';
@@ -12,6 +13,32 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const { theme, setTheme, applicationName } = useApp();
   
+  // Apply theme on initial render and when theme changes
+  useEffect(() => {
+    // Apply theme to HTML element
+    document.documentElement.classList.remove('light', 'dark');
+    
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.classList.add(systemTheme);
+    } else {
+      document.documentElement.classList.add(theme);
+    }
+    
+    // Update theme color meta tag
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.name = 'theme-color';
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute(
+      'content',
+      theme === 'dark' ? '#121212' : '#ffffff'
+    );
+  }, [theme]);
+  
+  // Toggle between light and dark themes
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
@@ -44,12 +71,14 @@ export const Layout = ({ children }: LayoutProps) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Languages className="h-5 w-5" />
-                  </Button>
+                  <Link to="/admin">
+                    <Button variant="ghost" size="icon">
+                      <Settings className="h-5 w-5" />
+                    </Button>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>تغيير اللغة</p>
+                  <p>إعدادات التطبيق</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

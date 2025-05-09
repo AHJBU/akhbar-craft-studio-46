@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { DesignCanvas } from "@/components/DesignCanvas";
 import { TextStyleControls } from "@/components/TextStyleControls";
@@ -13,6 +13,7 @@ const FullCustomizationPage = () => {
   const [originalImageDimensions, setOriginalImageDimensions] = useState({ width: 1080, height: 1080 });
   const [textBoxes, setTextBoxes] = useState<Array<{ id: number; text: string; x: number; y: number; styles: object }>>([]);
   const [selectedTextBox, setSelectedTextBox] = useState<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { logos } = useApp();
@@ -20,7 +21,10 @@ const FullCustomizationPage = () => {
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    
+    handleImageFile(file);
+  };
+  
+  const handleImageFile = (file?: File) => {
     if (!file) return;
     
     // Check if file is an image
@@ -41,8 +45,39 @@ const FullCustomizationPage = () => {
     img.onload = () => {
       setOriginalImageDimensions({ width: img.width, height: img.height });
       setBackgroundImage(imageUrl);
+      
+      toast({
+        title: "تم تحميل الصورة بنجاح",
+        description: `تم تحميل الصورة بأبعاد ${img.width}×${img.height}`,
+      });
+    };
+    img.onerror = () => {
+      toast({
+        title: "فشل تحميل الصورة",
+        description: "حدث خطأ أثناء محاولة تحميل الصورة",
+        variant: "destructive",
+      });
     };
     img.src = imageUrl;
+  };
+  
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleImageFile(e.dataTransfer.files[0]);
+    }
   };
   
   // Trigger file input click
@@ -52,14 +87,24 @@ const FullCustomizationPage = () => {
   
   // Use logo as background
   const useLogoAsBackground = (type: "horizontal" | "square") => {
-    setBackgroundImage(logos[type]);
+    const logoUrl = logos[type];
     
-    // Set dimensions based on logo type
-    if (type === "horizontal") {
-      setOriginalImageDimensions({ width: 1200, height: 600 });
-    } else {
-      setOriginalImageDimensions({ width: 800, height: 800 });
+    if (!logoUrl) {
+      toast({
+        title: "الشعار غير متوفر",
+        description: "لم يتم تعيين الشعار. يمكنك رفع شعار من صفحة الإعدادات.",
+        variant: "destructive",
+      });
+      return;
     }
+    
+    // Get dimensions of the logo
+    const img = new Image();
+    img.onload = () => {
+      setOriginalImageDimensions({ width: img.width || 800, height: img.height || 800 });
+      setBackgroundImage(logoUrl);
+    };
+    img.src = logoUrl;
   };
   
   return (
@@ -70,7 +115,14 @@ const FullCustomizationPage = () => {
       </div>
       
       {!backgroundImage ? (
-        <div className="bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center">
+        <div 
+          className={`bg-gray-50 dark:bg-gray-800 border-2 border-dashed ${
+            isDragOver ? "border-primary" : "border-gray-300 dark:border-gray-600"
+          } rounded-lg p-12 text-center`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             type="file"
             ref={fileInputRef}
@@ -85,7 +137,7 @@ const FullCustomizationPage = () => {
             </div>
             <h3 className="text-lg font-semibold mb-2">رفع صورة</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">اسحب وأفلت صورة هنا، أو انقر لاختيار صورة</p>
-            <Button onClick={triggerFileUpload}>اختيار صورة</Button>
+            <Button onClick={triggerFileUpload} className="mb-4">اختيار صورة</Button>
           </div>
           
           <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
